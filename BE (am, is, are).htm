@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flipcards - To Be</title>
+    <style>
+        /* Сброс стилей и шрифты iOS */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #eef2f3;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden; /* Запрет прокрутки */
+            -webkit-tap-highlight-color: transparent; /* Убирает синюю подсветку при нажатии */
+            user-select: none; /* Запрет выделения текста */
+        }
+
+        /* Сцена для 3D эффекта */
+        .scene {
+            width: 90vw; /* 90% ширины экрана */
+            height: 65vh; /* 65% высоты экрана */
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        /* Контейнер карточки */
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1); /* Плавная анимация */
+            transform-style: preserve-3d;
+        }
+
+        /* Класс для поворота */
+        .card.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* Общие стили сторон */
+        .card__face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden; /* Fix для Safari */
+            border-radius: 24px; /* Скругленные углы как в iOS */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            font-size: 28px; /* Крупный шрифт для телефона */
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        /* Лицевая сторона (Русский) */
+        .card__face--front {
+            background: #ffffff;
+            color: #333;
+        }
+
+        /* Обратная сторона (Английский) */
+        .card__face--back {
+            background: #007AFF; /* Фирменный синий цвет iOS */
+            color: white;
+            transform: rotateY(180deg);
+        }
+
+        /* Текст подсказки внизу */
+        .hint {
+            margin-top: 30px;
+            color: #8e8e93;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: opacity 0.3s;
+        }
+
+        /* Прогресс-бар таймера */
+        .timer-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.5);
+            width: 0%;
+            border-radius: 0 0 24px 24px;
+        }
+
+        /* Анимация таймера */
+        .card.is-flipped .timer-bar {
+            width: 100%;
+            transition: width 3s linear; /* 3 секунды заполнения */
+        }
+        
+        /* Счетчик */
+        .counter {
+            position: absolute;
+            top: 40px;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="counter" id="counter">1 / 30</div>
+
+    <div class="scene" onclick="handleCardClick()">
+        <div class="card" id="card">
+            <div class="card__face card__face--front">
+                <span id="front-text">Загрузка...</span>
+            </div>
+            
+            <div class="card__face card__face--back">
+                <span id="back-text">Loading...</span>
+                <div class="timer-bar"></div> </div>
+        </div>
+    </div>
+
+    <div class="hint" id="hint">Нажми для перевода</div>
+
+    <script>
+        // НОВЫЙ СПИСОК СЛОВ
+        const words = [
+            { en: "I am hungry.", ru: "Я голоден." },
+            { en: "You are kind.", ru: "Ты добрый." },
+            { en: "He is my brother.", ru: "Он мой брат." },
+            { en: "She is at work.", ru: "Она на работе." },
+            { en: "It is hot today.", ru: "Сегодня жарко." },
+            { en: "We are tired.", ru: "Мы устали." },
+            { en: "They are late.", ru: "Они опаздывают." },
+            { en: "Tom is a nice man.", ru: "Том — хороший человек." },
+            { en: "Sarah is sad.", ru: "Сара грустная." },
+            { en: "The car is red.", ru: "Машина красная." },
+            { en: "Are you ready?", ru: "Ты готов?" },
+            { en: "Is John here?", ru: "Джон здесь?" },
+            { en: "Is she your sister?", ru: "Она твоя сестра?" },
+            { en: "Are we lost?", ru: "Мы потерялись?" },
+            { en: "The sky is blue.", ru: "Небо голубое." },
+            { en: "Anna is a good singer.", ru: "Анна — хорошая певица." },
+            { en: "My parents are old.", ru: "Мои родители старые." },
+            { en: "The cat is black.", ru: "Кот чёрный." },
+            { en: "I am busy right now.", ru: "Я сейчас занят." },
+            { en: "This book is interesting.", ru: "Эта книга интересная." },
+            { en: "I am happy.", ru: "Я счастлив." },
+            { en: "You are smart.", ru: "Ты умный." },
+            { en: "Peter is a student.", ru: "Питер — студент." },
+            { en: "Lisa is beautiful.", ru: "Лиза красивая." },
+            { en: "The house is big.", ru: "Дом большой." },
+            { en: "We are family.", ru: "Мы семья." },
+            { en: "They are neighbors.", ru: "Они соседи." },
+            { en: "The coffee is cold.", ru: "Кофе холодный." },
+            { en: "Is Mike sick?", ru: "Майк болен?" },
+            { en: "Are the apples sweet?", ru: "Яблоки сладкие?" }
+        ];
+
+        let currentIndex = 0;
+        let isLocked = false; // Блокировка нажатий пока идет таймер
+
+        const card = document.getElementById('card');
+        const frontText = document.getElementById('front-text');
+        const backText = document.getElementById('back-text');
+        const hint = document.getElementById('hint');
+        const counter = document.getElementById('counter');
+        const timerBar = document.querySelector('.timer-bar');
+
+        // Перемешивание массива (Fisher-Yates)
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // Инициализация
+        function init() {
+            shuffle(words);
+            updateCardContent();
+        }
+
+        // Обновление текста (без анимации)
+        function updateCardContent() {
+            frontText.innerText = words[currentIndex].ru;
+            backText.innerText = words[currentIndex].en;
+            counter.innerText = `${currentIndex + 1} из ${words.length}`;
+        }
+
+        // Основная логика клика
+        function handleCardClick() {
+            if (isLocked) return; // Если заблокировано, ничего не делаем
+            
+            isLocked = true; // Блокируем нажатия
+            hint.style.opacity = 0; // Скрываем подсказку
+
+            // 1. Переворачиваем на английский
+            card.classList.add('is-flipped');
+
+            // 2. Ждем 3 секунды (пока полоска заполняется)
+            setTimeout(() => {
+                
+                // 3. Переворачиваем обратно на русский
+                card.classList.remove('is-flipped');
+
+                // 4. Пока карта вертится (через 300мс, когда она ребром к зрителю), меняем слово
+                setTimeout(() => {
+                    // Сброс полоски таймера (убираем transition, чтобы она мгновенно обнулилась)
+                    timerBar.style.transition = 'none';
+                    
+                    // Следующее слово
+                    currentIndex++;
+                    if (currentIndex >= words.length) {
+                        currentIndex = 0;
+                        shuffle(words); // Если прошли все слова, мешаем заново
+                    }
+                    updateCardContent();
+                    
+                    // Возвращаем transition для следующего раза
+                    setTimeout(() => { timerBar.style.transition = 'width 3s linear'; }, 50);
+                    
+                    // Разблокируем клик
+                    isLocked = false;
+                    hint.style.opacity = 1;
+                    
+                }, 300); // Половина времени анимации переворота
+
+            }, 3000); // Время чтения
+        }
+
+        // Запуск
+        init();
+
+    </script>
+</body>
+</html>
